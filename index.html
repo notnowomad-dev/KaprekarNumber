@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kaprekar's Routine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;600;800&family=Public+Sans:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap">
+<style>
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+[hidden] { display: none !important; }
+/* Layout: engineering graph paper; a column-subtraction "machine" beside the step log, distribution chart below */
+:root {
+  --bg: #eef2f1;
+  --grid: #dbe3e1;
+  --panel: #f9fbfa;
+  --ink: #17262e;
+  --muted: #5b6b72;
+  --line: #c4d0cd;
+  --accent: #2343c9;
+  --accent-soft: #dfe5fb;
+  --done: #127a5a;
+  --done-soft: #d6efe5;
+  --warn: #a8461c;
+  --warn-soft: #f7e2d7;
+  --tile: #ffffff;
+  --font-num: "Martian Mono", "Noto Sans Thai", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-body: "Public Sans", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1518; --grid: #182126; --panel: #151d21; --ink: #dde7ea; --muted: #8fa0a7;
+    --line: #2b3a40; --accent: #8ea2ff; --accent-soft: #1f2851; --done: #4fd1a2; --done-soft: #123528;
+    --warn: #f0976c; --warn-soft: #3a2118; --tile: #1b252a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1518; --grid: #182126; --panel: #151d21; --ink: #dde7ea; --muted: #8fa0a7;
+  --line: #2b3a40; --accent: #8ea2ff; --accent-soft: #1f2851; --done: #4fd1a2; --done-soft: #123528;
+  --warn: #f0976c; --warn-soft: #3a2118; --tile: #1b252a; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+html[lang="th"] body { line-height: 1.7; }
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-block: 40px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 24px;
+}
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+header { display: grid; gap: 8px; max-width: 68ch; min-width: 0; flex: 1 1 420px; }
+.eyebrow {
+  font-family: var(--font-num); font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+}
+h1 {
+  font-family: var(--font-num); font-weight: 800; font-size: clamp(28px, 5vw, 44px);
+  line-height: 1.2; margin: 0; letter-spacing: -.02em; text-wrap: balance;
+}
+html[lang="th"] h1 { letter-spacing: 0; }
+h1 .k { color: var(--accent); }
+header p { margin: 0; color: var(--muted); }
+h2 { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0; color: var(--muted); }
+html[lang="th"] h2 { letter-spacing: .02em; font-size: 14px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 20px;
+}
+
+/* Controls */
+.controls { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
+.field { display: grid; gap: 4px; }
+.field label, .field .lbl { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+input[type="text"], select {
+  font-family: var(--font-num); font-size: 18px; color: var(--ink);
+  background: var(--tile); border: 1px solid var(--line); border-radius: 4px;
+  padding: 8px 10px; height: 44px;
+}
+#startInput {
+  width: 8ch; height: 64px; font-size: 32px; font-weight: 600; letter-spacing: .25em;
+  text-align: center; border: 2px solid var(--accent); padding: 8px 4px 8px 14px;
+}
+#startInput::placeholder { color: var(--line); }
+.input-field { flex-basis: 100%; }
+.input-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.hint { font-size: 13px; color: var(--muted); max-width: 44ch; }
+.hint.warn { color: var(--warn); font-weight: 600; }
+select { font-family: var(--font-body); font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; height: 44px; background: var(--tile); }
+.seg button { border: 0; border-radius: 0; height: 100%; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.lang .seg { height: 36px; }
+.lang .seg button { font-size: 13px; padding: 0 12px; height: 100%; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button {
+  font-family: var(--font-body); font-weight: 600; font-size: 14px;
+  height: 44px; padding: 0 16px; border-radius: 4px; cursor: pointer;
+  background: var(--tile); color: var(--ink); border: 1px solid var(--line);
+}
+button:hover { border-color: var(--ink); }
+button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+button.primary:hover { filter: brightness(1.08); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Machine + log */
+.stage { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 760px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.machine { display: grid; gap: 18px; align-content: start; }
+.machine-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pill {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 4px 10px; border-radius: 99px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.pill.done { background: var(--done-soft); color: var(--done); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+
+.sum { display: grid; grid-template-columns: 3ch auto 1fr; row-gap: 10px; align-items: center; justify-content: center; }
+.sum .op { font-family: var(--font-num); font-size: 26px; color: var(--muted); text-align: center; }
+.sum .tag { font-size: 12px; color: var(--muted); padding-left: 14px; white-space: nowrap; }
+.row { display: flex; gap: 6px; }
+.tile {
+  width: clamp(44px, 11vw, 64px); aspect-ratio: 4 / 5; max-width: 100%;
+  display: grid; place-items: center;
+  font-family: var(--font-num); font-weight: 600; font-size: clamp(24px, 6vw, 36px);
+  background: var(--tile); border: 1px solid var(--line); border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.tile.empty { color: var(--line); }
+.row.result .tile { border-color: var(--ink); font-weight: 800; }
+.row.result.hit .tile { background: var(--done-soft); color: var(--done); border-color: var(--done); }
+.rule { grid-column: 2; height: 2px; background: var(--ink); }
+.flip { animation: flip .32s ease-out both; }
+@keyframes flip { from { transform: rotateX(80deg); opacity: .2; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .flip { animation: none; } }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; color: var(--muted); justify-content: center; }
+.meta b { font-family: var(--font-num); color: var(--ink); font-weight: 600; }
+
+.log { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; counter-reset: s; }
+.log li {
+  counter-increment: s; display: grid; grid-template-columns: 3.2em 1fr; align-items: baseline;
+  font-family: var(--font-num); font-size: 14px; padding: 6px 10px; border-radius: 4px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow-x: auto;
+}
+.log li::before { content: "#" counter(s); color: var(--muted); font-size: 12px; }
+.log li:nth-child(odd) { background: var(--bg); }
+.log li.hit { background: var(--done-soft); color: var(--done); font-weight: 600; }
+.log .empty-note { color: var(--muted); font-size: 13px; margin: 0; }
+
+/* Chart */
+.chart-wrap { display: grid; gap: 10px; }
+.chart-wrap p { margin: 0; color: var(--muted); font-size: 13px; max-width: 70ch; }
+.chart-scroll { overflow-x: auto; }
+svg text { font-family: var(--font-num); font-size: 11px; fill: var(--muted); }
+svg .bar { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+svg .bar.cur { fill: var(--accent); }
+svg .axis { stroke: var(--line); }
+svg .val.cur { fill: var(--accent); font-weight: 600; }
+footer { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <header>
+      <div class="eyebrow" data-i18n="eyebrow">D. R. Kaprekar · 1949</div>
+      <h1><span data-i18n="title">Kaprekar's Routine</span> → <span class="k" id="targetTitle">6174</span></h1>
+      <p data-i18n="intro">Take any number whose digits are not all the same. Sort its digits from largest to smallest, sort them again from smallest to largest, and subtract. Repeat with the answer. Four-digit numbers always land on 6174 within 7 steps; three-digit numbers land on 495.</p>
+    </header>
+    <div class="field lang">
+      <span class="lbl" id="langLabel">Language · ภาษา</span>
+      <div class="seg" role="group" aria-labelledby="langLabel">
+        <button type="button" id="langEn" lang="en" aria-pressed="true">English</button>
+        <button type="button" id="langTh" lang="th" aria-pressed="false">ไทย</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="panel controls" id="controls" aria-label="Controls">
+    <div class="field input-field">
+      <label for="startInput" id="inputLabel">Type a 4-digit number</label>
+      <div class="input-row">
+        <input type="text" id="startInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4" placeholder="0000" value="3524" aria-describedby="inputHint">
+        <span class="hint" id="inputHint">Use digits that are not all the same, then press Run or Enter.</span>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl" id="digitsLabel" data-i18n="digits">Digits</span>
+      <div class="seg" role="group" aria-labelledby="digitsLabel">
+        <button type="button" id="mode4" aria-pressed="true" data-i18n="mode4">4 digits</button>
+        <button type="button" id="mode3" aria-pressed="false" data-i18n="mode3">3 digits</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="speed" data-i18n="speed">Speed</label>
+      <select id="speed">
+        <option value="900" data-i18n="slow">Slow</option>
+        <option value="450" selected data-i18n="normal">Normal</option>
+        <option value="150" data-i18n="fast">Fast</option>
+      </select>
+    </div>
+    <div class="btns">
+      <button type="button" class="primary" id="runBtn" data-i18n="run">Run</button>
+      <button type="button" id="stepBtn" data-i18n="step">Step</button>
+      <button type="button" id="randBtn" data-i18n="random">Random</button>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="panel machine" aria-live="polite">
+      <div class="machine-head">
+        <h2 id="stepHeading">Step 0</h2>
+        <span class="pill" id="status">Ready</span>
+      </div>
+      <div class="sum">
+        <span class="op"></span><div class="row" id="rowDesc"></div><span class="tag" data-i18n="tagDesc">largest first</span>
+        <span class="op">−</span><div class="row" id="rowAsc"></div><span class="tag" data-i18n="tagAsc">smallest first</span>
+        <span></span><div class="rule"></div><span></span>
+        <span class="op">=</span><div class="row result" id="rowRes"></div><span class="tag" data-i18n="tagRes">difference</span>
+      </div>
+      <div class="meta">
+        <span><span data-i18n="metaStart">Start</span> <b id="metaStart">3524</b></span>
+        <span><span data-i18n="metaCur">Current</span> <b id="metaCur">3524</b></span>
+        <span><span data-i18n="metaSteps">Steps</span> <b id="metaSteps">0</b></span>
+      </div>
+    </div>
+
+    <div class="panel log">
+      <h2 data-i18n="log">Step log</h2>
+      <ol id="log"></ol>
+      <p class="empty-note" id="logEmpty" data-i18n="logEmpty" hidden>Press Run to watch each subtraction, or Step to do one at a time.</p>
+    </div>
+  </section>
+
+  <section class="panel chart-wrap">
+    <h2 data-i18n="chartTitle">How many steps does it take?</h2>
+    <p id="chartNote"></p>
+    <div class="chart-scroll"><svg id="chart" viewBox="0 0 640 220" width="100%" role="img" aria-label="Distribution of steps to reach the constant"></svg></div>
+  </section>
+
+  <footer data-i18n="footer">Repdigits such as 1111 or 777 are excluded: sorting gives the same number both ways and the difference is 0.</footer>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  const STR = {
+    en: {
+      eyebrow: 'D. R. Kaprekar · 1949',
+      title: "Kaprekar's Routine",
+      intro: 'Take any number whose digits are not all the same. Sort its digits from largest to smallest, sort them again from smallest to largest, and subtract. Repeat with the answer. Four-digit numbers always land on 6174 within 7 steps; three-digit numbers land on 495.',
+      controls: 'Controls',
+      inputLabel: 'Type a {d}-digit number',
+      hintDefault: 'Use digits that are not all the same, then press Run or Enter.',
+      hintEmpty: 'Type up to {d} digits.',
+      hintRep: 'All digits are the same. Change at least one digit.',
+      hintShort: 'Runs as {p}. Press Run or Enter.',
+      hintReady: 'Ready. Press Run or Enter.',
+      digits: 'Digits', mode4: '4 digits', mode3: '3 digits',
+      speed: 'Speed', slow: 'Slow', normal: 'Normal', fast: 'Fast',
+      run: 'Run', step: 'Step', random: 'Random',
+      stepN: 'Step {n}',
+      ready: 'Ready', running: 'Running',
+      reached: 'Reached {t} in {n} step(s)',
+      already: 'Already {t}',
+      paused: 'Paused · press Step again',
+      badInput: 'Enter up to {d} digits',
+      repStatus: 'All digits are the same, so the routine stops at 0',
+      tagDesc: 'largest first', tagAsc: 'smallest first', tagRes: 'difference',
+      metaStart: 'Start', metaCur: 'Current', metaSteps: 'Steps',
+      log: 'Step log',
+      logEmpty: 'Press Run to watch each subtraction, or Step to do one at a time.',
+      chartTitle: 'How many steps does it take?',
+      chartNote: 'Every valid starting number, grouped by how many subtractions it needs to reach {t}. Numbers with fewer digits get leading zeros, so {ex}. The highlighted bar is your current starting number.',
+      ex4: '999 is treated as 0999', ex3: '42 is treated as 042',
+      axis: 'steps to reach {t}',
+      chartAria: 'Distribution of steps to reach {t}',
+      footer: 'Repdigits such as 1111 or 777 are excluded: sorting gives the same number both ways and the difference is 0.'
+    },
+    th: {
+      eyebrow: 'ดี. อาร์. คาเปรการ์ · ค.ศ. 1949',
+      title: 'กระบวนการของคาเปรการ์',
+      intro: 'เลือกจำนวนใดก็ได้ที่ตัวเลขทุกหลักไม่เหมือนกันทั้งหมด เรียงตัวเลขจากมากไปน้อย แล้วเรียงอีกครั้งจากน้อยไปมาก จากนั้นนำมาลบกัน แล้วทำซ้ำกับผลลัพธ์ที่ได้ จำนวนสี่หลักจะได้ 6174 เสมอภายในไม่เกิน 7 ขั้น ส่วนจำนวนสามหลักจะได้ 495',
+      controls: 'ตัวควบคุม',
+      inputLabel: 'พิมพ์จำนวน {d} หลัก',
+      hintDefault: 'ใช้ตัวเลขที่ไม่เหมือนกันทุกหลัก แล้วกด “เริ่ม” หรือ Enter',
+      hintEmpty: 'พิมพ์ตัวเลขได้ไม่เกิน {d} หลัก',
+      hintRep: 'ตัวเลขทุกหลักเหมือนกัน กรุณาเปลี่ยนอย่างน้อยหนึ่งหลัก',
+      hintShort: 'จะคำนวณเป็น {p} กด “เริ่ม” หรือ Enter',
+      hintReady: 'พร้อมแล้ว กด “เริ่ม” หรือ Enter',
+      digits: 'จำนวนหลัก', mode4: '4 หลัก', mode3: '3 หลัก',
+      speed: 'ความเร็ว', slow: 'ช้า', normal: 'ปกติ', fast: 'เร็ว',
+      run: 'เริ่ม', step: 'ทีละขั้น', random: 'สุ่ม',
+      stepN: 'ขั้นที่ {n}',
+      ready: 'พร้อม', running: 'กำลังคำนวณ',
+      reached: 'ถึง {t} ใน {n} ขั้น',
+      already: 'เป็น {t} อยู่แล้ว',
+      paused: 'หยุดชั่วคราว · กด “ทีละขั้น” อีกครั้ง',
+      badInput: 'กรอกตัวเลขไม่เกิน {d} หลัก',
+      repStatus: 'ตัวเลขทุกหลักเหมือนกัน ผลลบจะเป็น 0',
+      tagDesc: 'มากไปน้อย', tagAsc: 'น้อยไปมาก', tagRes: 'ผลต่าง',
+      metaStart: 'เริ่มต้น', metaCur: 'ปัจจุบัน', metaSteps: 'จำนวนขั้น',
+      log: 'บันทึกขั้นตอน',
+      logEmpty: 'กด “เริ่ม” เพื่อดูการลบแต่ละขั้น หรือกด “ทีละขั้น” เพื่อทำทีละครั้ง',
+      chartTitle: 'ต้องใช้กี่ขั้น?',
+      chartNote: 'ทุกจำนวนที่ใช้ได้ จัดกลุ่มตามจำนวนครั้งที่ต้องลบจนได้ {t} จำนวนที่มีหลักน้อยกว่าจะเติมศูนย์ข้างหน้า เช่น {ex} แท่งที่เน้นสีคือจำนวนเริ่มต้นของคุณ',
+      ex4: '999 จะถือเป็น 0999', ex3: '42 จะถือเป็น 042',
+      axis: 'จำนวนขั้นจนถึง {t}',
+      chartAria: 'การกระจายของจำนวนขั้นจนถึง {t}',
+      footer: 'ไม่รวมจำนวนที่ตัวเลขทุกหลักเหมือนกัน เช่น 1111 หรือ 777 เพราะเมื่อเรียงแล้วได้ค่าเดิมทั้งสองแบบ และผลต่างเป็น 0'
+    }
+  };
+
+  let lang = 'en';
+  try { const saved = localStorage.getItem('kaprekar-lang'); if (saved === 'th' || saved === 'en') lang = saved; } catch (e) {}
+
+  const t = (key, p = {}) => {
+    let s = STR[lang][key] ?? STR.en[key];
+    if (key === 'reached' && lang === 'en') s = s.replace('step(s)', p.n === 1 ? 'step' : 'steps');
+    return s.replace(/\{(\w+)\}/g, (_, k) => p[k] ?? '');
+  };
+
+  let D = 4, TARGET = 6174;
+  let start = 3524, cur = 3524, steps = 0;
+  let runToken = 0, running = false;
+  let histCache = {};
+  // Remember what the status pill and hint say, so a language switch can redraw them.
+  let statusState = { key: 'ready', p: {}, kind: '' };
+  let hintState = { key: 'hintDefault', p: {}, warn: false };
+
+  const pad = n => String(n).padStart(D, '0');
+  const isRepdigit = n => new Set(pad(n)).size === 1;
+  const kStep = n => {
+    const s = pad(n).split('').sort();
+    const asc = s.join(''), desc = [...s].reverse().join('');
+    return { desc, asc, res: Number(desc) - Number(asc) };
+  };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function stepsTo(n) {
+    let c = 0;
+    while (n !== TARGET && c < 20) { n = kStep(n).res; c++; }
+    return c;
+  }
+
+  function setRow(el, str, animate) {
+    el.innerHTML = '';
+    for (let i = 0; i < D; i++) {
+      const tile = document.createElement('div');
+      const ch = str ? str[i] : '·';
+      tile.className = 'tile' + (str ? '' : ' empty') + (animate && str ? ' flip' : '');
+      if (animate && str) tile.style.animationDelay = (i * 50) + 'ms';
+      tile.textContent = ch;
+      el.appendChild(tile);
+    }
+  }
+
+  function setStatus(key, kind = '', p = {}) {
+    statusState = { key, p, kind };
+    renderStatus();
+  }
+  function renderStatus() {
+    const s = $('status');
+    s.textContent = t(statusState.key, statusState.p);
+    s.className = 'pill' + (statusState.kind ? ' ' + statusState.kind : '');
+  }
+
+  function setHint(key, warn = false, p = {}) {
+    hintState = { key, p, warn };
+    renderHint();
+  }
+  function renderHint() {
+    const h = $('inputHint');
+    h.textContent = t(hintState.key, hintState.p);
+    h.classList.toggle('warn', hintState.warn);
+  }
+  function updateHintFromInput() {
+    const v = $('startInput').value;
+    if (!v) setHint('hintEmpty', false, { d: D });
+    else if (isRepdigit(Number(v))) setHint('hintRep', true);
+    else if (v.length < D) setHint('hintShort', false, { p: v.padStart(D, '0') });
+    else setHint('hintReady');
+  }
+
+  function updateMeta() {
+    $('metaStart').textContent = pad(start);
+    $('metaCur').textContent = pad(cur);
+    $('metaSteps').textContent = steps;
+    $('stepHeading').textContent = t('stepN', { n: steps });
+  }
+
+  function addLog(r) {
+    const li = document.createElement('li');
+    li.textContent = `${r.desc} − ${r.asc} = ${pad(r.res)}`;
+    if (r.res === TARGET) li.classList.add('hit');
+    $('log').appendChild(li);
+    $('logEmpty').hidden = true;
+  }
+
+  function finishedCheck() {
+    if (cur === TARGET) {
+      if (steps === 0) setStatus('already', 'done', { t: TARGET });
+      else setStatus('reached', 'done', { t: TARGET, n: steps });
+      $('rowRes').classList.add('hit');
+      return true;
+    }
+    return false;
+  }
+
+  function reset(n) {
+    runToken++; running = false;
+    start = cur = n; steps = 0;
+    $('log').innerHTML = '';
+    $('logEmpty').hidden = false;
+    $('rowRes').classList.remove('hit');
+    setRow($('rowDesc'), null); setRow($('rowAsc'), null); setRow($('rowRes'), pad(n));
+    updateMeta();
+    drawChart();
+    setButtons();
+    if (!finishedCheck()) setStatus('ready');
+  }
+
+  // Validate the input box; return the number or null.
+  function readInput() {
+    const raw = $('startInput').value.trim();
+    if (!/^\d+$/.test(raw) || raw.length > D) {
+      setStatus('badInput', 'warn', { d: D }); return null;
+    }
+    const n = Number(raw);
+    if (isRepdigit(n)) { setStatus('repStatus', 'warn'); return null; }
+    return n;
+  }
+
+  async function doStep(animate, token) {
+    const r = kStep(cur);
+    const ms = Number($('speed').value);
+    $('rowRes').classList.remove('hit');
+    if (animate) {
+      setRow($('rowDesc'), r.desc, true); setRow($('rowAsc'), null); setRow($('rowRes'), null);
+      await sleep(ms); if (token !== runToken) return false;
+      setRow($('rowAsc'), r.asc, true);
+      await sleep(ms); if (token !== runToken) return false;
+      setRow($('rowRes'), pad(r.res), true);
+    } else {
+      setRow($('rowDesc'), r.desc); setRow($('rowAsc'), r.asc); setRow($('rowRes'), pad(r.res));
+    }
+    cur = r.res; steps++;
+    addLog(r); updateMeta();
+    return true;
+  }
+
+  async function run() {
+    const n = readInput(); if (n === null) return;
+    reset(n);
+    if (cur === TARGET) return;
+    const token = ++runToken; running = true; setButtons();
+    setStatus('running');
+    while (cur !== TARGET && steps < 20) {
+      const ok = await doStep(true, token);
+      if (!ok) return;
+      if (cur === TARGET) break;
+      await sleep(Number($('speed').value) * 1.3);
+      if (token !== runToken) return;
+    }
+    running = false; setButtons(); finishedCheck();
+  }
+
+  async function step() {
+    if (running) return;
+    const raw = $('startInput').value.trim();
+    // A new or edited number starts a fresh run.
+    if (raw !== pad(start) && raw !== String(start)) {
+      const n = readInput(); if (n === null) return;
+      reset(n);
+    } else if (cur === TARGET && steps > 0) {
+      // Finished run: start the same number over.
+      reset(start);
+    }
+    if (cur === TARGET) { finishedCheck(); return; }
+    await doStep(true, runToken);
+    if (!finishedCheck()) setStatus('paused');
+  }
+
+  function setButtons() { $('stepBtn').disabled = running; }
+
+  function randomStart() {
+    let n;
+    do { n = Math.floor(Math.random() * Math.pow(10, D)); } while (isRepdigit(n) || n < Math.pow(10, D - 1));
+    $('startInput').value = String(n);
+    updateHintFromInput();
+    run();
+  }
+
+  function histogram() {
+    if (histCache[D]) return histCache[D];
+    const counts = [];
+    for (let n = 0; n < Math.pow(10, D); n++) {
+      if (isRepdigit(n)) continue;
+      const s = stepsTo(n);
+      counts[s] = (counts[s] || 0) + 1;
+    }
+    for (let i = 0; i < counts.length; i++) counts[i] = counts[i] || 0;
+    return (histCache[D] = counts);
+  }
+
+  function drawChart() {
+    const counts = histogram();
+    const svg = $('chart');
+    const W = 640, H = 220, padL = 16, padR = 16, top = 24, bottom = 40;
+    const max = Math.max(...counts);
+    const bw = (W - padL - padR) / counts.length;
+    const curSteps = isRepdigit(start) ? -1 : stepsTo(start);
+    const ns = 'http://www.w3.org/2000/svg';
+    svg.innerHTML = '';
+    svg.setAttribute('aria-label', t('chartAria', { t: TARGET }));
+    const mk = (tag, attrs, text) => {
+      const e = document.createElementNS(ns, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e); return e;
+    };
+    const base = H - bottom;
+    mk('line', { x1: padL, x2: W - padR, y1: base, y2: base, class: 'axis' });
+    counts.forEach((c, i) => {
+      const h = max ? (c / max) * (base - top) : 0;
+      const x = padL + i * bw + bw * 0.15, w = bw * 0.7;
+      const isCur = i === curSteps;
+      mk('rect', { x, y: base - h, width: w, height: Math.max(h, 1), rx: 2, class: 'bar' + (isCur ? ' cur' : '') });
+      mk('text', { x: x + w / 2, y: base - h - 6, 'text-anchor': 'middle', class: 'val' + (isCur ? ' cur' : '') }, c.toLocaleString('en-US'));
+      mk('text', { x: x + w / 2, y: base + 16, 'text-anchor': 'middle' }, i);
+    });
+    mk('text', { x: W / 2, y: H - 6, 'text-anchor': 'middle' }, t('axis', { t: TARGET }));
+  }
+
+  // Redraw every piece of text in the current language.
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.title = lang === 'th' ? 'กระบวนการของคาเปรการ์' : "Kaprekar's Routine";
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    $('controls').setAttribute('aria-label', t('controls'));
+    $('inputLabel').textContent = t('inputLabel', { d: D });
+    $('chartNote').textContent = t('chartNote', { t: TARGET, ex: t(D === 4 ? 'ex4' : 'ex3') });
+    $('langEn').setAttribute('aria-pressed', lang === 'en');
+    $('langTh').setAttribute('aria-pressed', lang === 'th');
+    renderStatus(); renderHint(); updateMeta(); drawChart();
+  }
+
+  function setLang(l) {
+    lang = l;
+    try { localStorage.setItem('kaprekar-lang', l); } catch (e) {}
+    applyLang();
+  }
+
+  function setMode(d) {
+    if (d === D) return;
+    D = d; TARGET = d === 4 ? 6174 : 495;
+    $('mode4').setAttribute('aria-pressed', d === 4);
+    $('mode3').setAttribute('aria-pressed', d === 3);
+    $('startInput').maxLength = d;
+    $('startInput').placeholder = '0'.repeat(d);
+    $('targetTitle').textContent = TARGET;
+    const sample = d === 4 ? 3524 : 352;
+    $('startInput').value = String(sample);
+    setHint('hintDefault');
+    applyLang();
+    showComplete(sample);
+  }
+
+  // Show a finished run with no animation, so the page opens with a worked example.
+  function showComplete(n) {
+    reset(n);
+    while (cur !== TARGET && steps < 20) doStep(false, runToken);
+    finishedCheck();
+  }
+
+  $('runBtn').addEventListener('click', run);
+  $('stepBtn').addEventListener('click', step);
+  $('randBtn').addEventListener('click', randomStart);
+  $('mode4').addEventListener('click', () => setMode(4));
+  $('mode3').addEventListener('click', () => setMode(3));
+  $('langEn').addEventListener('click', () => setLang('en'));
+  $('langTh').addEventListener('click', () => setLang('th'));
+  $('startInput').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  // Keep only digits as the viewer types, and say whether the number is ready.
+  $('startInput').addEventListener('input', e => {
+    const el = e.target;
+    el.value = el.value.replace(/\D/g, '').slice(0, D);
+    updateHintFromInput();
+  });
+
+  showComplete(3524);
+  applyLang();
+})();
+</script>
+</body>
+</html>
