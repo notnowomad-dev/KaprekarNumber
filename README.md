@@ -11,7 +11,7 @@ An interactive web page that shows how any 4-digit number reaches **6174** (Kapr
 - Type a number, or pick a random one, then run the routine step by step or all at once.
 - 4-digit and 3-digit modes.
 - A chart of how many steps every starting number needs.
-- English and Thai (ไทย) text.
+- Thai (ไทย) text by default, with a button to switch to English.
 
 ## Run it
 
